@@ -85,7 +85,7 @@ with col3:
 st.markdown(
     """
     <div style="background-color:#ffe524; padding:1px; border-radius:10px;">
-        <h2 style="color:#000000; text-align:center;">Stats Over Time</h2>
+        <h2 style="color:#000000; text-align:center;">Overview of GMP</h2>
     </div>
     """,
     unsafe_allow_html=True
