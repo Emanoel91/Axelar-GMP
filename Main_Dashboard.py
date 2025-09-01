@@ -169,22 +169,22 @@ col1, col2, col3, col4 = st.columns(4)
 
 col1.metric(
     label="Total Transactions",
-    value=f"{df_kpi["Total Transactions"][0]:,} Txns"
+    value=f"🔗{df_kpi["Total Transactions"][0]:,} Txns"
 )
 
 col2.metric(
     label="Unique Users",
-    value=f"{df_kpi["Unique Users"][0]:,} Wallets"
+    value=f"💼{df_kpi["Unique Users"][0]:,} Wallets"
 )
 
 col3.metric(
     label="Total Volume",
-    value=f"${df_kpi["Total Volume"][0]:,}"
+    value=f"💲{df_kpi["Total Volume"][0]:,}"
 )
 
 col4.metric(
     label="Average Volume per User",
-    value=f"${df_kpi["Average Volume per User"][0]:,}"
+    value=f"💲{df_kpi["Average Volume per User"][0]:,}"
 )
 
 # --- Row 2 ------------------------------------------------------------------------------------------------------------------------------------------------------
