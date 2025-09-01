@@ -876,7 +876,7 @@ fig1.add_trace(go.Bar(
     y=new_users_data["New Users"], 
     name="New Users", 
     yaxis="y1",
-    marker_color="orange"
+    marker_color="blue"
 ))
 
 fig1.add_trace(go.Scatter(
@@ -885,7 +885,7 @@ fig1.add_trace(go.Scatter(
     name="Cumulative New Users", 
     mode="lines", 
     yaxis="y2",
-    line=dict(color="blue")
+    line=dict(color="red")
 ))
 
 fig1.update_layout(
