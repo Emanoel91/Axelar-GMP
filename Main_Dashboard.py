@@ -174,7 +174,7 @@ col1.metric(
 
 col2.metric(
     label="Unique Users",
-    value=f"{df_kpi["Unique Users"][0]:,} Txns"
+    value=f"{df_kpi["Unique Users"][0]:,} Wallets"
 )
 
 col3.metric(
@@ -411,3 +411,102 @@ fig_stacked = px.bar(
 )
 fig_stacked.update_layout(barmode="stack", yaxis_title="$USD")
 st.plotly_chart(fig_stacked, use_container_width=True)
+
+# --- Row 4 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+@st.cache_data
+def load_kpi_data_chains(start_date, end_date):
+    
+    start_str = start_date.strftime("%Y-%m-%d")
+    end_str = end_date.strftime("%Y-%m-%d")
+
+    query = f"""
+    WITH overview as (
+    WITH axelar_gmp AS (
+  
+    SELECT  
+    created_at,
+    LOWER(data:call.chain::STRING) AS source_chain,
+    LOWER(data:call.returnValues.destinationChain::STRING) AS destination_chain,
+    data:call.transaction.from::STRING AS user,
+
+    CASE 
+      WHEN IS_ARRAY(data:amount) OR IS_OBJECT(data:amount) THEN NULL
+      WHEN TRY_TO_DOUBLE(data:amount::STRING) IS NOT NULL THEN TRY_TO_DOUBLE(data:amount::STRING)
+      ELSE NULL
+    END AS amount,
+
+    CASE 
+      WHEN IS_ARRAY(data:value) OR IS_OBJECT(data:value) THEN NULL
+      WHEN TRY_TO_DOUBLE(data:value::STRING) IS NOT NULL THEN TRY_TO_DOUBLE(data:value::STRING)
+      ELSE NULL
+    END AS amount_usd,
+
+    COALESCE(
+      CASE 
+        WHEN IS_ARRAY(data:gas:gas_used_amount) OR IS_OBJECT(data:gas:gas_used_amount) 
+          OR IS_ARRAY(data:gas_price_rate:source_token.token_price.usd) OR IS_OBJECT(data:gas_price_rate:source_token.token_price.usd) 
+        THEN NULL
+        WHEN TRY_TO_DOUBLE(data:gas:gas_used_amount::STRING) IS NOT NULL 
+          AND TRY_TO_DOUBLE(data:gas_price_rate:source_token.token_price.usd::STRING) IS NOT NULL 
+        THEN TRY_TO_DOUBLE(data:gas:gas_used_amount::STRING) * TRY_TO_DOUBLE(data:gas_price_rate:source_token.token_price.usd::STRING)
+        ELSE NULL
+      END,
+      CASE 
+        WHEN IS_ARRAY(data:fees:express_fee_usd) OR IS_OBJECT(data:fees:express_fee_usd) THEN NULL
+        WHEN TRY_TO_DOUBLE(data:fees:express_fee_usd::STRING) IS NOT NULL THEN TRY_TO_DOUBLE(data:fees:express_fee_usd::STRING)
+        ELSE NULL
+      END
+    ) AS fee,
+
+    id, 
+    'GMP' AS "Service", 
+    data:symbol::STRING AS raw_asset
+
+  FROM axelar.axelscan.fact_gmp 
+  WHERE status = 'executed'
+    AND simplified_status = 'received'
+    )
+
+SELECT created_at, id, user, source_chain, destination_chain,
+     "Service", amount, amount_usd, fee
+
+FROM axelar_gmp)
+
+select 
+count(distinct source_chain) as "Number of Sources",
+count(distinct destination_chain) as "Number of Destinations",
+round(avg(amount_usd)) as "Average Volume",
+round(max(amount_usd)) as "Max Volumme"
+from overview
+where created_at::date>='{start_str}' and created_at::date<='{end_str}'
+    """
+
+    df = pd.read_sql(query, conn)
+    return df
+
+# --- Load Data ----------------------------------------------------------------------------------------------------
+df_kpi_chains = load_kpi_data_chains(start_date, end_date)
+
+# --- KPI Row ------------------------------------------------------------------------------------------------------
+col1, col2, col3, col4 = st.columns(4)
+
+col1.metric(
+    label="Number of Sources",
+    value=f"{df_kpi_chains["Number of Sources"][0]:,} Chains"
+)
+
+col2.metric(
+    label="Number of Destinations",
+    value=f"{df_kpi_chains["Number of Destinations"][0]:,} Chains"
+)
+
+col3.metric(
+    label="Average Volume",
+    value=f"${df_kpi_chains["Average Volume"][0]:,}"
+)
+
+col4.metric(
+    label="Max Volumme",
+    value=f"${df_kpi_chains["Average Volume per User"][0]:,}"
+)
+
