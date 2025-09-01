@@ -507,6 +507,6 @@ col3.metric(
 
 col4.metric(
     label="Max Volumme",
-    value=f"${df_kpi_chains["Average Volume per User"][0]:,}"
+    value=f"${df_kpi_chains["Max Volumme"][0]:,}"
 )
 
