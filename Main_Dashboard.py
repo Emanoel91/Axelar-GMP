@@ -988,7 +988,7 @@ when count(distinct id)>=11  then '>10 Txns'
 end as "Number of Txns"
 FROM axelar.axelscan.fact_gmp 
 WHERE status = 'executed' AND simplified_status = 'received'
-and created_at::date>='2022-11-01' and created_at::date<='2025-08-31'
+and created_at::date>='{start_str}' and created_at::date<='{end_str}'
 group by 1)
 
 select "Number of Txns", count(distinct user) as "Number of Users"
@@ -1022,7 +1022,7 @@ when count(distinct created_at::date)>=11  then '>10 Days'
 end as "#Days of Activity"
 FROM axelar.axelscan.fact_gmp 
 WHERE status = 'executed' AND simplified_status = 'received'
-and created_at::date>='2022-11-01' and created_at::date<='2025-08-31'
+and created_at::date>='{start_str}' and created_at::date<='{end_str}'
 group by 1)
 
 select "#Days of Activity", count(distinct user) as "Number of Users"
@@ -1046,7 +1046,7 @@ lower(data:call.chain::STRING) AS source_chain,
 lower(data:call.returnValues.destinationChain::STRING) AS destination_chain
 FROM axelar.axelscan.fact_gmp 
 WHERE status = 'executed' AND simplified_status = 'received'
-and created_at::date>='2022-11-01' and created_at::date<='2025-08-31')
+and created_at::date>='{start_str}' and created_at::date<='{end_str}')
 
 select user, count(distinct (source_chain || '➡' || destination_chain)), case 
 when count(distinct (source_chain || '➡' || destination_chain))=1 then '1 Path'
