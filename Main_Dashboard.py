@@ -902,3 +902,4 @@ fig1.update_layout(
         x=0.5
     )
 )
+st.plotly_chart(fig1, use_container_width=True)
