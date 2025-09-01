@@ -697,31 +697,40 @@ with col1:
     st.plotly_chart(fig1, use_container_width=True)
 
 with col2:
-    fig1 = go.Figure()
-    fig1.add_trace(
+    fig2 = go.Figure()
+    fig2.add_trace(
         go.Scatter(
-            x=df_ts["DATE"],
-            y=df_ts["NUMBER_OF_BRIDGERS"],
-            name="Number of Bridgers",
-            mode="lines+markers",
+            x=moving_average_data["Date"],
+            y=moving_average_data["Avg 30 Day Moving"],
+            name="Avg 30 Day Moving",
+            mode="lines",
             yaxis="y1"
         )
     )
     
-    fig1.add_trace(
+    fig2.add_trace(
         go.Scatter(
-            x=df_ts["DATE"],
-            y=df_ts["AVG_BRIDGE_COUNT_PER_USER"],
-            name="Avg Bridge Count per User",
-            mode="lines+markers",
-            yaxis="y2"
+            x=moving_average_data["Date"],
+            y=moving_average_data["Avg 60 Day Moving"],
+            name="Avg 60 Day Moving",
+            mode="lines",
+            yaxis="y1"
         )
     )
 
-    fig1.update_layout(
-        title="Number of Bridgers Over Time",
-        yaxis=dict(title="User count"),
-        yaxis2=dict(title="Txns count", overlaying="y", side="right"),
+    fig2.add_trace(
+        go.Scatter(
+            x=moving_average_data["Date"],
+            y=moving_average_data["Avg 90 Day Moving"],
+            name="Avg 90 Day Moving",
+            mode="lines",
+            yaxis="y1"
+        )
+    )
+    
+    fig2.update_layout(
+        title="Average 30, 60 & 90 Moving Volume Over Time",
+        yaxis=dict(title="$USD"),
         xaxis=dict(title=" "),
         legend=dict(
             orientation="h",   
@@ -731,4 +740,4 @@ with col2:
             x=0.5
         )
     )
-    st.plotly_chart(fig1, use_container_width=True)
+    st.plotly_chart(fig2, use_container_width=True)
