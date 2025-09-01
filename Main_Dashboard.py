@@ -750,3 +750,82 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
+# --- Row 6 --------------------------------------------------------------------------------------------------------------
+@st.cache_data
+def load_txn_distribution(start_date, end_date):
+    start_str = start_date.strftime("%Y-%m-%d")
+    end_str = end_date.strftime("%Y-%m-%d")
+
+    query = f"""
+    WITH axelar_gmp AS (
+SELECT data:call.transaction.from::STRING AS user, count(distinct id), case 
+when count(distinct id)=1 then '1 Txn'
+when count(distinct id)=2 then '2 Txns'
+when count(distinct id)>=3 and count(distinct id)<=5 then '3-5 Txns'
+when count(distinct id)>=6 and count(distinct id)<=10 then '6-10 Txns'
+when count(distinct id)>=11 and count(distinct id)<=15 then '11-15 Txns'
+when count(distinct id)>=16 and count(distinct id)<=25 then '16-25 Txns'
+when count(distinct id)>=26 and count(distinct id)<=50 then '26-50 Txns'
+when count(distinct id)>=51  then '>50 Txns'
+end as "Class"
+FROM axelar.axelscan.fact_gmp 
+WHERE status = 'executed' AND simplified_status = 'received'
+and created_at::date>='2022-11-01' and created_at::date<='2025-08-31'
+group by 1)
+
+select "Class", count(distinct user) as "Number of Users"
+From axelar_gmp
+GROUP BY 1
+ORDER BY 2 desc
+    """
+
+    return pd.read_sql(query, conn)
+
+# --- Load Data --------------------------------------------------------------------------------------
+txn_distribution = load_txn_distribution(start_date, end_date)
+# ----------------------------------------------------------------------------------------------------
+bar_fig = px.bar(
+    txn_distribution,
+    x="Class",
+    y="Number of Users",
+    title="Breakdown of Users",
+    color_discrete_sequence=["#5e67f8"]
+)
+bar_fig.update_layout(
+    xaxis_title=" ",
+    yaxis_title="Wallet count",
+    bargap=0.2
+)
+
+# ---------------------------------------
+color_scale = {
+    '1 Txn': '#d9fd51',        # lime-ish
+    '2 Txns': '#b1f85a',
+    '3-5 Txns': '#8be361',
+    '6-10 Txns': '#639d55',
+    '11-15 Txns': '#4a7c42',
+    '16-25 Txns': '#7a4c89',  # purple-ish
+    '26-50 Txns': '#cd00fc',
+    '>50 Txns': '#fa1d64',
+}
+
+fig_donut_volume = px.pie(
+    txn_distribution,
+    names="Class",
+    values="Number of Users",
+    title="Share of Users",
+    hole=0.5,
+    color="Class",
+    color_discrete_map=color_scale
+)
+
+fig_donut_volume.update_traces(textposition='outside', textinfo='percent+label', pull=[0.05]*len(df_volume_distribution_total))
+fig_donut_volume.update_layout(showlegend=True, legend=dict(orientation="v", y=0.5, x=1.1))
+
+col1, col2 = st.columns(2)
+
+with col1:
+    st.plotly_chart(bar_fig, use_container_width=True)
+
+with col2:
+    st.plotly_chart(fig_donut_volume, use_container_width=True)
