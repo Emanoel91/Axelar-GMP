@@ -890,9 +890,9 @@ fig1.add_trace(go.Scatter(
 
 fig1.update_layout(
     title="Number of New Users Over Time",
-    yaxis=dict(title="New Users (daily)"),  
-    yaxis2=dict(title="Cumulative Users", overlaying="y", side="right"),  
-    xaxis=dict(title="Date"),
+    yaxis=dict(title="Wallet count"),  
+    yaxis2=dict(title="Wallet count", overlaying="y", side="right"),  
+    xaxis=dict(title=" "),
     barmode="group",
     legend=dict(
         orientation="h",   
