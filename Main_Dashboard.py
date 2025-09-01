@@ -390,7 +390,8 @@ when created_at::date >= '2026-04-01' and created_at::date < '2026-06-30' then '
 when created_at::date >= '2026-07-01' and created_at::date < '2026-09-30' then 'Q3-2026'
 when created_at::date >= '2026-10-01' and created_at::date < '2026-12-31' then 'Q4-2026'
 end as "Quarter",
-round(sum(amount_usd)) as "Total Volume"
+round(sum(amount_usd)) as "Total Volume",
+sum("Total Volume") over (partition by "Quarter" order by "Date" asc) as "Cumulative Volume"
 from overview
 where created_at::date>='{start_str}' and created_at::date<='{end_str}'
 group by 1, 2
@@ -404,7 +405,7 @@ quarterly_data = load_quarterly_data(timeframe, start_date, end_date)
 fig_stacked = px.bar(
     quarterly_data,
     x="Date",
-    y="Total Volume",
+    y="Cumulative Volume",
     color="Quarter",
     title="Volume per Quarter Over Time (USD)"
 )
