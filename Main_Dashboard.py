@@ -965,3 +965,148 @@ col2.metric(
     label="Average Daily New Users",
     value=f"💼{kpi_data_new_user["AVERAGE_DAILY_NEW_USERS"][0]:,} Wallets"
 )
+# --- Row 9 --------------------------------------------------------------------------------------------------------------
+@st.cache_data
+def load_pie_data_txn(start_date, end_date):
+    start_str = start_date.strftime("%Y-%m-%d")
+    end_str = end_date.strftime("%Y-%m-%d")
+
+    query = f"""
+    WITH axelar_gmp AS (
+SELECT data:call.transaction.from::STRING AS user, count(distinct id), case 
+when count(distinct id)=1 then '1 Txn'
+when count(distinct id)=2 then '2 Txns'
+when count(distinct id)=3 then '3 Txns'
+when count(distinct id)=4 then '4 Txn'
+when count(distinct id)=5 then '5 Txns'
+when count(distinct id)=6 then '6 Txns'
+when count(distinct id)=7 then '7 Txn'
+when count(distinct id)=8 then '8 Txns'
+when count(distinct id)=9 then '9 Txns'
+when count(distinct id)=10 then '10 Txns'
+when count(distinct id)>=11  then '>10 Txns'
+end as "Number of Txns"
+FROM axelar.axelscan.fact_gmp 
+WHERE status = 'executed' AND simplified_status = 'received'
+and created_at::date>='2022-11-01' and created_at::date<='2025-08-31'
+group by 1)
+
+select "Number of Txns", count(distinct user) as "Number of Users"
+From axelar_gmp
+GROUP BY 1
+ORDER BY 2 desc
+
+    """
+
+    return pd.read_sql(query, conn)
+
+@st.cache_data
+def load_pie_data_day(start_date, end_date):
+    start_str = start_date.strftime("%Y-%m-%d")
+    end_str = end_date.strftime("%Y-%m-%d")
+
+    query = f"""
+    WITH axelar_gmp AS (
+SELECT data:call.transaction.from::STRING AS user, count(distinct created_at::date), case 
+when count(distinct created_at::date)=1 then '1 Day'
+when count(distinct created_at::date)=2 then '2 Days'
+when count(distinct created_at::date)=3 then '3 Days'
+when count(distinct created_at::date)=4 then '4 Days'
+when count(distinct created_at::date)=5 then '5 Days'
+when count(distinct created_at::date)=6 then '6 Days'
+when count(distinct created_at::date)=7 then '7 Days'
+when count(distinct created_at::date)=8 then '8 Days'
+when count(distinct created_at::date)=9 then '9 Days'
+when count(distinct created_at::date)=10 then '10 Days'
+when count(distinct created_at::date)>=11  then '>10 Days'
+end as "#Days of Activity"
+FROM axelar.axelscan.fact_gmp 
+WHERE status = 'executed' AND simplified_status = 'received'
+and created_at::date>='2022-11-01' and created_at::date<='2025-08-31'
+group by 1)
+
+select "#Days of Activity", count(distinct user) as "Number of Users"
+From axelar_gmp
+GROUP BY 1
+ORDER BY 2 desc
+    """
+
+    return pd.read_sql(query, conn)
+
+@st.cache_data
+def load_pie_data_path(start_date, end_date):
+    start_str = start_date.strftime("%Y-%m-%d")
+    end_str = end_date.strftime("%Y-%m-%d")
+
+    query = f"""
+    with overview as (
+WITH axelar_gmp AS (
+SELECT data:call.transaction.from::STRING AS user, 
+lower(data:call.chain::STRING) AS source_chain,
+lower(data:call.returnValues.destinationChain::STRING) AS destination_chain
+FROM axelar.axelscan.fact_gmp 
+WHERE status = 'executed' AND simplified_status = 'received'
+and created_at::date>='2022-11-01' and created_at::date<='2025-08-31')
+
+select user, count(distinct (source_chain || '➡' || destination_chain)), case 
+when count(distinct (source_chain || '➡' || destination_chain))=1 then '1 Path'
+when count(distinct (source_chain || '➡' || destination_chain))=2 then '2 Paths'
+when count(distinct (source_chain || '➡' || destination_chain))=3 then '3 Paths'
+when count(distinct (source_chain || '➡' || destination_chain))=4 then '4 Paths'
+when count(distinct (source_chain || '➡' || destination_chain))=5 then '5 Paths'
+when count(distinct (source_chain || '➡' || destination_chain))=6 then '6 Paths'
+when count(distinct (source_chain || '➡' || destination_chain))=7 then '7 Paths'
+when count(distinct (source_chain || '➡' || destination_chain))=8 then '8 Paths'
+when count(distinct (source_chain || '➡' || destination_chain))=9 then '9 Paths'
+when count(distinct (source_chain || '➡' || destination_chain))=10 then '10 Paths'
+when count(distinct (source_chain || '➡' || destination_chain))>=11  then '>10 Paths'
+end as "Number of Paths"
+from axelar_gmp 
+group by 1)
+
+select "Number of Paths", count(distinct user) as "Number of Users"
+from overview
+group by 1
+order by 2 desc 
+    """
+
+    return pd.read_sql(query, conn)
+
+# --- Load Data ----------------------------------------------------------------------------------------------------
+pie_data_txn = load_pie_data_txn(start_date, end_date)
+pie_data_day = load_pie_data_day(start_date, end_date)
+pie_data_path = load_pie_data_path(start_date, end_date)
+# --- Layout -------------------------------------------------------------------------------------------------------
+col1, col2 = st.columns(2)
+
+# Pie Chart for Txn Distribution
+fig1 = px.pie(
+    pie_data_txn, 
+    values="Number of Users",    
+    names="Number of Txns",    
+    title="Share of Transaction by Users"
+)
+fig1.update_traces(textinfo="percent+label", textposition="inside", automargin=True)
+
+# Pie Chart for #Days of Activity
+fig2 = px.pie(
+    pie_data_day, 
+    values="Number of Users",     
+    names="#Days of Activity",    
+    title="Share of Active Day by Users"
+)
+fig2.update_traces(textinfo="percent+label", textposition="inside", automargin=True)
+
+# Pie Chart for path
+fig3 = px.pie(
+    pie_data_path, 
+    values="Number of Users",     
+    names="Number of Paths",    
+    title="Share of Paths by Users"
+)
+fig3.update_traces(textinfo="percent+label", textposition="inside", automargin=True)
+
+# display charts
+col1.plotly_chart(fig1, use_container_width=True)
+col2.plotly_chart(fig2, use_container_width=True)
+col3.plotly_chart(fig3, use_container_width=True)
