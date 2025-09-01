@@ -169,7 +169,7 @@ col1, col2, col3, col4 = st.columns(4)
 
 col1.metric(
     label="Total Transactions",
-    value=f"{df_kpi['TOTAL_TRANSACTIONS'][0]:,} Txns"
+    value=f"{df_kpi["Total Transactions"][0]:,} Txns"
 )
 
 col2.metric(
