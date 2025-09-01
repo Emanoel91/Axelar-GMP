@@ -247,7 +247,7 @@ SELECT created_at, id, user, source_chain, destination_chain,
 FROM axelar_gmp)
 
 select 
-date_trunc('{time_frame}',created_at) as "Date",
+date_trunc('{timeframe}',created_at) as "Date",
 count(distinct id) as "Total Transactions",
 count(distinct user) as "Unique Users",
 round(sum(amount_usd)) as "Total Volume"
