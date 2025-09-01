@@ -174,15 +174,15 @@ col1.metric(
 
 col2.metric(
     label="Unique Users",
-    value=f"{df_kpi['UNIQUE_USERS'][0]:,} Txns"
+    value=f"{df_kpi["Unique Users"][0]:,} Txns"
 )
 
 col3.metric(
     label="Total Volume",
-    value=f"${df_kpi['TOTAL_VOLUME'][0]:,}"
+    value=f"${df_kpi["Total Volume"][0]:,}"
 )
 
 col4.metric(
     label="Average Volume per User",
-    value=f"${df_kpi['AVERAGE_VOLUME_PER_USER'][0]:,}"
+    value=f"${df_kpi["Average Volume per User"][0]:,}"
 )
