@@ -307,3 +307,106 @@ with col2:
         template="plotly_white"
     )
     st.plotly_chart(fig2, use_container_width=True)
+
+# --- Row 3 ----------------------------------------------------------------------------------------------------------------------------------
+@st.cache_data
+def load_quarterly_data(timeframe, start_date, end_date):
+    start_str = start_date.strftime("%Y-%m-%d")
+    end_str = end_date.strftime("%Y-%m-%d")
+    
+    query = f"""
+  WITH overview as (
+  WITH axelar_gmp AS (
+  
+  SELECT  
+    created_at,
+    LOWER(data:call.chain::STRING) AS source_chain,
+    LOWER(data:call.returnValues.destinationChain::STRING) AS destination_chain,
+    data:call.transaction.from::STRING AS user,
+
+    CASE 
+      WHEN IS_ARRAY(data:amount) OR IS_OBJECT(data:amount) THEN NULL
+      WHEN TRY_TO_DOUBLE(data:amount::STRING) IS NOT NULL THEN TRY_TO_DOUBLE(data:amount::STRING)
+      ELSE NULL
+    END AS amount,
+
+    CASE 
+      WHEN IS_ARRAY(data:value) OR IS_OBJECT(data:value) THEN NULL
+      WHEN TRY_TO_DOUBLE(data:value::STRING) IS NOT NULL THEN TRY_TO_DOUBLE(data:value::STRING)
+      ELSE NULL
+    END AS amount_usd,
+
+    COALESCE(
+      CASE 
+        WHEN IS_ARRAY(data:gas:gas_used_amount) OR IS_OBJECT(data:gas:gas_used_amount) 
+          OR IS_ARRAY(data:gas_price_rate:source_token.token_price.usd) OR IS_OBJECT(data:gas_price_rate:source_token.token_price.usd) 
+        THEN NULL
+        WHEN TRY_TO_DOUBLE(data:gas:gas_used_amount::STRING) IS NOT NULL 
+          AND TRY_TO_DOUBLE(data:gas_price_rate:source_token.token_price.usd::STRING) IS NOT NULL 
+        THEN TRY_TO_DOUBLE(data:gas:gas_used_amount::STRING) * TRY_TO_DOUBLE(data:gas_price_rate:source_token.token_price.usd::STRING)
+        ELSE NULL
+      END,
+      CASE 
+        WHEN IS_ARRAY(data:fees:express_fee_usd) OR IS_OBJECT(data:fees:express_fee_usd) THEN NULL
+        WHEN TRY_TO_DOUBLE(data:fees:express_fee_usd::STRING) IS NOT NULL THEN TRY_TO_DOUBLE(data:fees:express_fee_usd::STRING)
+        ELSE NULL
+      END
+    ) AS fee,
+
+    id, 
+    'GMP' AS "Service", 
+    data:symbol::STRING AS raw_asset
+
+  FROM axelar.axelscan.fact_gmp 
+  WHERE status = 'executed'
+    AND simplified_status = 'received'
+    )
+
+SELECT created_at, id, user, source_chain, destination_chain,
+     "Service", amount, amount_usd, fee
+
+FROM axelar_gmp)
+
+select 
+date_trunc('{timeframe}',created_at) as "Date", case 
+when created_at::date >= '2022-01-01' and created_at::date < '2022-04-01' then 'Q1-2022'
+when created_at::date >= '2022-04-01' and created_at::date < '2022-07-01' then 'Q2-2022'
+when created_at::date >= '2022-07-01' and created_at::date < '2022-10-01' then 'Q3-2022'
+when created_at::date >= '2022-10-01' and created_at::date < '2023-01-01' then 'Q4-2022'
+when created_at::date >= '2023-01-01' and created_at::date < '2023-04-01' then 'Q1-2023'
+when created_at::date >= '2023-04-01' and created_at::date < '2023-07-01' then 'Q2-2023'
+when created_at::date >= '2023-07-01' and created_at::date < '2023-10-01' then 'Q3-2023'
+when created_at::date >= '2023-10-01' and created_at::date < '2024-01-01' then 'Q4-2023'
+when created_at::date >= '2024-01-01' and created_at::date < '2024-04-01' then 'Q1-2024'
+when created_at::date >= '2024-04-01' and created_at::date < '2024-07-01' then 'Q2-2024'
+when created_at::date >= '2024-07-01' and created_at::date < '2024-10-01' then 'Q3-2024'
+when created_at::date >= '2024-10-01' and created_at::date < '2025-01-01' then 'Q4-2024' 
+when created_at::date >= '2025-01-01' and created_at::date < '2025-04-01' then 'Q1-2025'
+when created_at::date >= '2025-04-01' and created_at::date < '2025-07-01' then 'Q2-2025'
+when created_at::date >= '2025-07-01' and created_at::date < '2025-10-01' then 'Q3-2025'
+when created_at::date >= '2025-10-01' and created_at::date < '2026-01-01' then 'Q4-2025'
+when created_at::date >= '2026-01-01' and created_at::date < '2026-04-01' then 'Q1-2026'
+when created_at::date >= '2026-04-01' and created_at::date < '2026-07-01' then 'Q2-2026'
+when created_at::date >= '2026-07-01' and created_at::date < '2026-10-01' then 'Q3-2026'
+when created_at::date >= '2026-10-01' and created_at::date < '2027-01-01' then 'Q4-2026'
+end as "Quarter",
+round(sum(amount_usd)) as "Total Volume"
+from overview
+where created_at::date>='{start_str}' and created_at::date<='{end_str}'
+group by 1, 2
+order by 1
+
+    """
+    return pd.read_sql(query, conn)
+# --- Load Data --------------------------------------------------------------
+quarterly_data = load_quarterly_data(timeframe, start_date, end_date)
+# --- stacked bar Chart ------------------------------------------------------
+fig_stacked = px.bar(
+    quarterly_data,
+    x="Date",
+    y="Total Volume",
+    color="Quarter",
+    title="Volume per Quarter Over Time (USD)"
+)
+fig_stacked.update_layout(barmode="stack", yaxis_title="$USD")
+st.plotly_chart(fig_stacked, use_container_width=True)
