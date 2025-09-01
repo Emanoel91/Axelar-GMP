@@ -869,7 +869,7 @@ order by 1
 new_users_data = load_new_users_data(timeframe, start_date, end_date)
 # --- Row 3 --------------------------------------------------------------------------------------------------------
 
-    fig1 = go.Figure()
+# --     fig1 = go.Figure()
 
     fig1.add_bar(
         x=new_users_data["Date"], 
