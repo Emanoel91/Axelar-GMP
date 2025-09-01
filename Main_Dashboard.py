@@ -281,7 +281,7 @@ with col1:
         name="Unique Users", 
         mode="lines", 
         yaxis="y2",
-        line=dict(color="pink")
+        line=dict(color="red")
     ))
     fig1.update_layout(
         title="Number of Users and Transactions Over Time",
