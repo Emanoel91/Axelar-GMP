@@ -829,3 +829,76 @@ with col1:
 
 with col2:
     st.plotly_chart(fig_donut_volume, use_container_width=True)
+
+# --- Row 7 --------------------------------------------------------------------------------------------------------
+@st.cache_data
+def load_new_users_data(timeframe, start_date, end_date):
+    start_str = start_date.strftime("%Y-%m-%d")
+    end_str = end_date.strftime("%Y-%m-%d")
+
+    query = f"""
+    WITH overview as (
+WITH axelar_gmp AS (
+  
+  SELECT  
+    created_at,
+    data:call.transaction.from::STRING AS user
+  FROM axelar.axelscan.fact_gmp 
+  WHERE status = 'executed'
+    AND simplified_status = 'received'
+    )
+
+SELECT user, min(created_at::date) as first_txn_date
+FROM axelar_gmp
+group by 1)
+
+select 
+date_trunc('{timeframe}',first_txn_date) as "Date",
+count(distinct user) as "New Users",
+sum("New Users") over (order by "Date") as "Cumulative New Users"
+from overview
+where first_txn_date::date>='{start_str}' and first_txn_date::date<='{end_str}'
+group by 1
+order by 1
+
+    """
+
+    return pd.read_sql(query, conn)
+
+# --- Load Data ----------------------------------------------------------------------------------------------------
+new_users_data = load_new_users_data(timeframe, start_date, end_date)
+# --- Row 3 --------------------------------------------------------------------------------------------------------
+
+    fig1 = go.Figure()
+
+    fig1.add_bar(
+        x=new_users_data["Date"], 
+        y=new_users_data["New Users"], 
+        name="New Users", 
+        yaxis="y1",
+        marker_color="orange"
+    )
+
+    fig1.add_trace(go.Scatter(
+        x=new_users_data["Date"], 
+        y=new_users_data["Cumulative New Users"], 
+        name="Cumulative New Users", 
+        mode="lines", 
+        yaxis="y2",
+        line=dict(color="blue")
+    ))
+    fig1.update_layout(
+        title="Number of New Users Over Time",
+        yaxis=dict(title="Wallet count"),
+        yaxis2=dict(title="Wallet count", overlaying="y", side="right"),
+        xaxis=dict(title=" "),
+        barmode="group",
+        legend=dict(
+            orientation="h",   
+            yanchor="bottom", 
+            y=1.05,           
+            xanchor="center",  
+            x=0.5
+        )
+    )
+    st.plotly_chart(fig1, use_container_width=True)
