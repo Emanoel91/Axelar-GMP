@@ -741,3 +741,12 @@ with col2:
         )
     )
     st.plotly_chart(fig2, use_container_width=True)
+
+st.markdown(
+    """
+    <div style="background-color:#ff2776; padding:1px; border-radius:10px;">
+        <h2 style="color:#000000; text-align:center;">Analysis of Users</h2>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
