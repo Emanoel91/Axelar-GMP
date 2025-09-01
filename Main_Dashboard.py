@@ -492,21 +492,21 @@ col1, col2, col3, col4 = st.columns(4)
 
 col1.metric(
     label="Number of Sources",
-    value=f"{df_kpi_chains["Number of Sources"][0]:,} Chains"
+    value=f"⛓{df_kpi_chains["Number of Sources"][0]:,} Chains"
 )
 
 col2.metric(
     label="Number of Destinations",
-    value=f"{df_kpi_chains["Number of Destinations"][0]:,} Chains"
+    value=f"⛓{df_kpi_chains["Number of Destinations"][0]:,} Chains"
 )
 
 col3.metric(
     label="Average Volume",
-    value=f"${df_kpi_chains["Average Volume"][0]:,}"
+    value=f"💲{df_kpi_chains["Average Volume"][0]:,}"
 )
 
 col4.metric(
     label="Max Volumme",
-    value=f"${df_kpi_chains["Max Volumme"][0]:,}"
+    value=f"💲{df_kpi_chains["Max Volumme"][0]:,}"
 )
 
