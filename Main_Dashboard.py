@@ -903,3 +903,65 @@ fig1.update_layout(
     )
 )
 st.plotly_chart(fig1, use_container_width=True)
+
+# --- Row 8 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+@st.cache_data
+def load_kpi_data_new_user(start_date, end_date):
+    
+    start_str = start_date.strftime("%Y-%m-%d")
+    end_str = end_date.strftime("%Y-%m-%d")
+
+    query = f"""
+    WITH axelar_gmp AS (
+    SELECT  
+        created_at::date AS created_date,
+        data:call.transaction.from::STRING AS user
+    FROM axelar.axelscan.fact_gmp 
+    WHERE status = 'executed'
+      AND simplified_status = 'received'
+),
+overview AS (
+    SELECT 
+        user, 
+        MIN(created_date) AS first_txn_date
+    FROM axelar_gmp
+    GROUP BY user
+),
+daily_new_users AS (
+    SELECT 
+        DATE_TRUNC('day', first_txn_date) AS date,
+        COUNT(DISTINCT user) AS new_users
+    FROM overview
+    WHERE first_txn_date BETWEEN '{start_str}' AND '{end_str}'
+    GROUP BY 1
+),
+stats AS (
+    SELECT 
+        MAX(SUM(new_users)) OVER (ORDER BY date ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) 
+            AS cumulative_new_users,
+        ROUND(AVG(new_users)) AS average_daily_new_users
+    FROM daily_new_users
+)
+SELECT DISTINCT cumulative_new_users, average_daily_new_users
+FROM stats
+
+    """
+
+    df = pd.read_sql(query, conn)
+    return df
+
+# --- Load Data ----------------------------------------------------------------------------------------------------
+kpi_data_new_user = load_kpi_data_new_user(start_date, end_date)
+
+# --- KPI Row ------------------------------------------------------------------------------------------------------
+col1, col2 = st.columns(2)
+
+col1.metric(
+    label="Total New Users",
+    value=f"👥{kpi_data_new_user["CUMULATIVE_NEW_USERS"][0]:,} Wallets"
+)
+
+col2.metric(
+    label="Average Daily New Users",
+    value=f"💼{kpi_data_new_user["AVERAGE_DAILY_NEW_USERS"][0]:,} Wallets"
+)
