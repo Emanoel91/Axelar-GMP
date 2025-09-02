@@ -1121,7 +1121,7 @@ st.markdown(
 )
 # --- Row 10 ------------------------------------------------------------------------------------------------------------------------------------------------------
 @st.cache_data
-def load_heatmap_data(timeframe, start_date, end_date):
+def load_heatmap_data(start_date, end_date):
     start_str = start_date.strftime("%Y-%m-%d")
     end_str = end_date.strftime("%Y-%m-%d")
 
@@ -1179,16 +1179,9 @@ SELECT created_at, id, user, source_chain, destination_chain,
 FROM axelar_gmp)
 
 select 
-DATE_PART(hour, created_at) AS "Hour",
-  case
-    WHEN EXTRACT(DOW FROM created_at) = 0 THEN 'Sunday'
-    WHEN EXTRACT(DOW FROM created_at) = 1 THEN 'Monday'
-    WHEN EXTRACT(DOW FROM created_at) = 2 THEN 'Tuesday'
-    WHEN EXTRACT(DOW FROM created_at) = 3 THEN 'Wednesday'
-    WHEN EXTRACT(DOW FROM created_at) = 4 THEN 'Thursday'
-    WHEN EXTRACT(DOW FROM created_at) = 5 THEN 'Friday'
-    WHEN EXTRACT(DOW FROM created_at) = 6 THEN 'Saturday'
-  END AS "Day",
+DATE_PART('hour', block_timestamp) AS "Hour",
+           CASE WHEN DAYOFWEEK(block_timestamp)=0 THEN 7 
+                ELSE DAYOFWEEK(block_timestamp) END || ' - ' || DAYNAME(block_timestamp) AS "Day",
 count(distinct id) as "Number of Transfers",
 round(sum(amount_usd)) as "Volume of Transfers"
 from overview
@@ -1200,33 +1193,23 @@ order by 1, 2
     return pd.read_sql(query, conn)
 
 # --- Load Data ----------------------------------------------------------------------------------------------------
-heatmap_data = load_heatmap_data(timeframe, start_date, end_date)
+df_heatmap_data = load_heatmap_data(start_date, end_date)
 # --- Row 2 charts -------------------------------------------------------------------------------------------------
-heatmap_data["Hour"] = heatmap_data["Hour"].astype(str)
-day_order = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
-heatmap_data["Day"] = pd.Categorical(heatmap_data["Day"], categories=day_order, ordered=True)
+
 col1, col2 = st.columns(2)
 
 with col1:
-    st.subheader("Number of Transfers")
-    fig1 = px.density_heatmap(
-        heatmap_data,
-        x="Hour",
-        y="Day",
-        z="Number of Transfers",
-        category_orders={"Day": day_order, "Hour": [str(h) for h in range(24)]},
-        color_continuous_scale="Viridis"
-    )
-    st.plotly_chart(fig1, use_container_width=True)
+    
+    heatmap_data = df_heatmap_data.pivot_table(index="Day", columns="Hour", values="Number of Transfers", fill_value=0)
+    fig_heatmap = px.imshow(heatmap_data, aspect="auto",
+                            title="Heatmap of Transactions",
+                            labels=dict(x="Hour", y="Day", color="Number of Transfers"))
+    st.plotly_chart(fig_heatmap)
 
 with col2:
-    st.subheader("Volume of Transfers (USD)")
-    fig2 = px.density_heatmap(
-        heatmap_data,
-        x="Hour",
-        y="Day",
-        z="Volume of Transfers",
-        category_orders={"Day": day_order, "Hour": [str(h) for h in range(24)]},
-        color_continuous_scale="Plasma"
-    )
-    st.plotly_chart(fig2, use_container_width=True)
+    
+    heatmap_data = df_heatmap_data.pivot_table(index="Day", columns="Hour", values="Volume of Transfers", fill_value=0)
+    fig_heatmap = px.imshow(heatmap_data, aspect="auto",
+                            title="Heatmap of Transactions",
+                            labels=dict(x="Hour", y="Day", color="Volume of Transfers"))
+    st.plotly_chart(fig_heatmap)
