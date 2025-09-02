@@ -1391,6 +1391,11 @@ fig_txns = px.scatter(
 st.plotly_chart(fig_txns, use_container_width=True)
 
 # --- Row 14 ------------------------------------------------------------------------------------------------------------
+import streamlit as st
+import pandas as pd
+import plotly.express as px
+
+# --- Query Function -----------------------------------------------------------------------------------------------
 @st.cache_data
 def load_top_path_data(start_date, end_date):
     start_str = start_date.strftime("%Y-%m-%d")
@@ -1438,7 +1443,6 @@ def load_top_path_data(start_date, end_date):
           AND simplified_status = 'received'
           AND created_at::date >= '{start_str}' 
           AND created_at::date <= '{end_str}'
-          
     )
     SELECT source_chain || '➡' || destination_chain AS "Path", 
            COUNT(DISTINCT id) AS "Number of Transfers", 
@@ -1451,14 +1455,17 @@ def load_top_path_data(start_date, end_date):
 
     return pd.read_sql(query, conn)
 
+
 # --- Load Data ----------------------------------------------------------------------------------------------------
 top_path_data = load_top_path_data(start_date, end_date)
+
 # --- Top 10 Horizontal Bar Charts ----------------------------------------------------------------------------------
 top_vol = top_path_data.nlargest(10, "Volume of Transfers (USD)")
 top_txn = top_path_data.nlargest(10, "Number of Transfers")
 
 col1, col2 = st.columns(2)
 
+# --- Figure 1: Top Routes by Volume -------------------------------------------------------------------------------
 with col1:
     fig1 = px.bar(
         top_vol.sort_values("Volume of Transfers (USD)", ascending=False),
@@ -1473,9 +1480,9 @@ with col1:
     fig1.update_layout(xaxis={'categoryorder':'total descending'})         
     st.plotly_chart(fig1, use_container_width=True)
 
+# --- Figure 2: Clustered Bar Chart (Transfers vs Users) ------------------------------------------------------------
 with col2:
-    with col2:
-    # داده را به long-format تبدیل می‌کنیم
+    # تبدیل داده‌ها به long format
     top_txn_long = top_txn.melt(
         id_vars="Path",
         value_vars=["Number of Transfers", "Number of Users"],
@@ -1484,11 +1491,11 @@ with col2:
     )
 
     fig2 = px.bar(
-        top_txn_long.sort_values("Count", ascending=False),
+        top_txn_long,
         x="Path",
         y="Count",
-        color="Metric",   # ستون‌ها را بر اساس Metric (Transfers/Users) رنگی و جدا می‌کند
-        barmode="group",  # اینجا باعث می‌شود clustered bar chart رسم شود
+        color="Metric",
+        barmode="group",  # ستون‌های کنار هم
         title="Top Routes by Transactions vs Users",
         labels={"Count": "Value", "Path": " "}
     )
