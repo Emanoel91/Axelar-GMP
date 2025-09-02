@@ -1179,9 +1179,9 @@ SELECT created_at, id, user, source_chain, destination_chain,
 FROM axelar_gmp)
 
 select 
-DATE_PART('hour', block_timestamp) AS "Hour",
-           CASE WHEN DAYOFWEEK(block_timestamp)=0 THEN 7 
-                ELSE DAYOFWEEK(block_timestamp) END || ' - ' || DAYNAME(block_timestamp) AS "Day",
+DATE_PART('hour', created_at) AS "Hour",
+           CASE WHEN DAYOFWEEK(created_at)=0 THEN 7 
+                ELSE DAYOFWEEK(created_at) END || ' - ' || DAYNAME(created_at) AS "Day",
 count(distinct id) as "Number of Transfers",
 round(sum(amount_usd)) as "Volume of Transfers"
 from overview
