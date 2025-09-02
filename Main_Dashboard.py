@@ -1358,6 +1358,7 @@ def load_source_dest_data(start_date, end_date):
           AND amount_usd IS NOT NULL
         GROUP BY 1, 2
         ORDER BY 3 DESC, 4
+        limit 200
     """
     return pd.read_sql(query, conn)
 
