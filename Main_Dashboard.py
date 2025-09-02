@@ -1214,6 +1214,7 @@ with col1:
         x="Hour",
         y="Day",
         z="Number of Transfers",
+        category_orders={"Day": day_order, "Hour": [str(h) for h in range(24)]},
         color_continuous_scale="Viridis"
     )
     st.plotly_chart(fig1, use_container_width=True)
@@ -1225,6 +1226,7 @@ with col2:
         x="Hour",
         y="Day",
         z="Volume of Transfers",
+        category_orders={"Day": day_order, "Hour": [str(h) for h in range(24)]},
         color_continuous_scale="Plasma"
     )
     st.plotly_chart(fig2, use_container_width=True)
