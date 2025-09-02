@@ -1210,6 +1210,6 @@ with col2:
     
     heatmap_data = df_heatmap_data.pivot_table(index="Day", columns="Hour", values="Volume of Transfers", fill_value=0)
     fig_heatmap = px.imshow(heatmap_data, aspect="auto",
-                            title="Heatmap of Transactions",
+                            title="Heatmap of Volume",
                             labels=dict(x="Hour", y="Day", color="Volume of Transfers"))
     st.plotly_chart(fig_heatmap)
