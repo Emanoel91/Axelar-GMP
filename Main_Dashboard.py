@@ -1077,7 +1077,7 @@ pie_data_txn = load_pie_data_txn(start_date, end_date)
 pie_data_day = load_pie_data_day(start_date, end_date)
 pie_data_path = load_pie_data_path(start_date, end_date)
 # --- Layout -------------------------------------------------------------------------------------------------------
-col1, col2 = st.columns(2)
+col1, col2, col3 = st.columns(3)
 
 # Pie Chart for Txn Distribution
 fig1 = px.pie(
