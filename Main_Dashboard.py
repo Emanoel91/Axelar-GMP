@@ -1482,7 +1482,7 @@ with col1:
 
 # --- Figure 2: Clustered Bar Chart (Transfers vs Users) ------------------------------------------------------------
 with col2:
-    # تبدیل داده‌ها به long format
+    # long format
     top_txn_long = top_txn.melt(
         id_vars="Path",
         value_vars=["Number of Transfers", "Number of Users"],
@@ -1495,7 +1495,7 @@ with col2:
         x="Path",
         y="Count",
         color="Metric",
-        barmode="group",  # ستون‌های کنار هم
+        barmode="group",  
         title="Top Routes by Transactions vs Users",
         labels={"Count": "Value", "Path": " "}
     )
