@@ -1474,15 +1474,24 @@ with col1:
     st.plotly_chart(fig1, use_container_width=True)
 
 with col2:
-    fig2 = px.bar(
-        top_txn.sort_values("Number of Transfers", ascending=False),
-        x="Path", 
-        y="Number of Transfers",
-        title="Top Routes by Number of Transactions",
-        labels={"Number of Transfers": "Txns count", "Path": " "},
-        color_discrete_sequence=["#3f48cc"],
-        text="Number of Transfers"
+    with col2:
+    # داده را به long-format تبدیل می‌کنیم
+    top_txn_long = top_txn.melt(
+        id_vars="Path",
+        value_vars=["Number of Transfers", "Number of Users"],
+        var_name="Metric",
+        value_name="Count"
     )
-    fig2.update_traces(texttemplate='%{text}', textposition='outside')
+
+    fig2 = px.bar(
+        top_txn_long.sort_values("Count", ascending=False),
+        x="Path",
+        y="Count",
+        color="Metric",   # ستون‌ها را بر اساس Metric (Transfers/Users) رنگی و جدا می‌کند
+        barmode="group",  # اینجا باعث می‌شود clustered bar chart رسم شود
+        title="Top Routes by Transactions vs Users",
+        labels={"Count": "Value", "Path": " "}
+    )
+    fig2.update_traces(texttemplate='%{y}', textposition='outside')
     fig2.update_layout(xaxis={'categoryorder':'total descending'})
-    st.plotly_chart(fig2, use_container_width=True) 
+    st.plotly_chart(fig2, use_container_width=True)
