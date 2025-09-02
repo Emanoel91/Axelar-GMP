@@ -1364,3 +1364,27 @@ def load_source_dest_data(start_date, end_date):
 # Load Data
 src_dest_df = load_source_dest_data(start_date, end_date)
 
+# Bubble Chart 1: Volume
+fig_vol = px.scatter(
+    src_dest_df,
+    x="Source Chain",
+    y="Destination Chain",
+    size="Volume (USD)",
+    color="Source Chain",
+    hover_data=["Volume (USD)", "Number of Transactions"],
+    title="Volume Heatmap Per Route"
+)
+st.plotly_chart(fig_vol, use_container_width=True)
+
+# Bubble Chart 2: Number of Transactions
+fig_txns = px.scatter(
+    src_dest_df,
+    x="Source Chain",
+    y="Destination Chain",
+    size="Number of Transactions",
+    color="Source Chain",
+    hover_data=["Volume (USD)", "Number of Transactions"],
+    title="Transactions Heatmap Per Route"
+)
+
+st.plotly_chart(fig_txns, use_container_width=True)
