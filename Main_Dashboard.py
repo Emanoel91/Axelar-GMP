@@ -1509,7 +1509,7 @@ st.markdown(
     <div style="margin-top: 20px; margin-bottom: 20px; font-size: 16px;">
         <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
             <img src="https://cdn-icons-png.flaticon.com/512/3178/3178287.png" alt="Reference" style="width:20px; height:20px;">
-            <span>Dashboard Reference: <a href="https://flipsidecrypto.xyz/hess/axelar-gmp-VV7aX3" target="_blank">https://flipsidecrypto.xyz/hess/axelar-gmp-VV7aX3/</a></span>
+            <span>Dashboard Reference (Some of the code and charts were modified and rewritten): <a href="https://flipsidecrypto.xyz/hess/axelar-gmp-VV7aX3" target="_blank">https://flipsidecrypto.xyz/hess/axelar-gmp-VV7aX3/</a></span>
         </div>
         <div style="display: flex; align-items: center; gap: 10px;">
             <img src="https://pbs.twimg.com/profile_images/1856738793325268992/OouKI10c_400x400.jpg" alt="Flipside" style="width:25px; height:25px; border-radius: 50%;">
