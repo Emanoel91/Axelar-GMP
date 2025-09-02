@@ -1119,3 +1119,109 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
+# --- Row 10 ------------------------------------------------------------------------------------------------------------------------------------------------------
+@st.cache_data
+def load_heatmap_data(timeframe, start_date, end_date):
+    start_str = start_date.strftime("%Y-%m-%d")
+    end_str = end_date.strftime("%Y-%m-%d")
+
+    query = f"""
+    WITH overview as (
+WITH axelar_gmp AS (
+  
+  SELECT  
+    created_at,
+    LOWER(data:call.chain::STRING) AS source_chain,
+    LOWER(data:call.returnValues.destinationChain::STRING) AS destination_chain,
+    data:call.transaction.from::STRING AS user,
+
+    CASE 
+      WHEN IS_ARRAY(data:amount) OR IS_OBJECT(data:amount) THEN NULL
+      WHEN TRY_TO_DOUBLE(data:amount::STRING) IS NOT NULL THEN TRY_TO_DOUBLE(data:amount::STRING)
+      ELSE NULL
+    END AS amount,
+
+    CASE 
+      WHEN IS_ARRAY(data:value) OR IS_OBJECT(data:value) THEN NULL
+      WHEN TRY_TO_DOUBLE(data:value::STRING) IS NOT NULL THEN TRY_TO_DOUBLE(data:value::STRING)
+      ELSE NULL
+    END AS amount_usd,
+
+    COALESCE(
+      CASE 
+        WHEN IS_ARRAY(data:gas:gas_used_amount) OR IS_OBJECT(data:gas:gas_used_amount) 
+          OR IS_ARRAY(data:gas_price_rate:source_token.token_price.usd) OR IS_OBJECT(data:gas_price_rate:source_token.token_price.usd) 
+        THEN NULL
+        WHEN TRY_TO_DOUBLE(data:gas:gas_used_amount::STRING) IS NOT NULL 
+          AND TRY_TO_DOUBLE(data:gas_price_rate:source_token.token_price.usd::STRING) IS NOT NULL 
+        THEN TRY_TO_DOUBLE(data:gas:gas_used_amount::STRING) * TRY_TO_DOUBLE(data:gas_price_rate:source_token.token_price.usd::STRING)
+        ELSE NULL
+      END,
+      CASE 
+        WHEN IS_ARRAY(data:fees:express_fee_usd) OR IS_OBJECT(data:fees:express_fee_usd) THEN NULL
+        WHEN TRY_TO_DOUBLE(data:fees:express_fee_usd::STRING) IS NOT NULL THEN TRY_TO_DOUBLE(data:fees:express_fee_usd::STRING)
+        ELSE NULL
+      END
+    ) AS fee,
+
+    id, 
+    'GMP' AS "Service", 
+    data:symbol::STRING AS raw_asset
+
+  FROM axelar.axelscan.fact_gmp 
+  WHERE status = 'executed'
+    AND simplified_status = 'received'
+    )
+
+SELECT created_at, id, user, source_chain, destination_chain,
+     "Service", amount, amount_usd, fee
+
+FROM axelar_gmp)
+
+select 
+DATE_PART(hour, created_at) AS "Hour",
+  case
+    WHEN EXTRACT(DOW FROM created_at) = 0 THEN 'Sunday'
+    WHEN EXTRACT(DOW FROM created_at) = 1 THEN 'Monday'
+    WHEN EXTRACT(DOW FROM created_at) = 2 THEN 'Tuesday'
+    WHEN EXTRACT(DOW FROM created_at) = 3 THEN 'Wednesday'
+    WHEN EXTRACT(DOW FROM created_at) = 4 THEN 'Thursday'
+    WHEN EXTRACT(DOW FROM created_at) = 5 THEN 'Friday'
+    WHEN EXTRACT(DOW FROM created_at) = 6 THEN 'Saturday'
+  END AS "Day",
+count(distinct id) as "Number of Transfers",
+round(sum(amount_usd)) as "Volume of Transfers"
+from overview
+where created_at::date>='{start_str}' and created_at::date<='{end_str}'
+group by 1, 2
+order by 1, 2
+    """
+
+    return pd.read_sql(query, conn)
+
+# --- Load Data ----------------------------------------------------------------------------------------------------
+heatmap_data = load_heatmap_data(timeframe, start_date, end_date)
+# --- Row 2 charts -------------------------------------------------------------------------------------------------
+col1, col2 = st.columns(2)
+
+with col1:
+    st.subheader("Number of Transfers")
+    fig1 = px.density_heatmap(
+        heatmap_data,
+        x="Hour",
+        y="Day",
+        z="Number of Transfers",
+        color_continuous_scale="Viridis"
+    )
+    st.plotly_chart(fig1, use_container_width=True)
+
+with col2:
+    st.subheader("Volume of Transfers (USD)")
+    fig2 = px.density_heatmap(
+        heatmap_data,
+        x="Hour",
+        y="Day",
+        z="Volume of Transfers",
+        color_continuous_scale="Plasma"
+    )
+    st.plotly_chart(fig2, use_container_width=True)
