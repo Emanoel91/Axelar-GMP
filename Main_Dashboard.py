@@ -1300,7 +1300,7 @@ df_display.index = df_display.index + 1
 df_display = df_display.applymap(lambda x: f"{x:,}" if isinstance(x, (int, float)) else x)
 st.dataframe(df_display, use_container_width=True)
 
-# --- Row 12 -------------------------------------------------------------------------------------------------------------
+# --- Row 12, 13 -------------------------------------------------------------------------------------------------------------
 @st.cache_data
 def load_source_dest_data(start_date, end_date):
     query = f"""
@@ -1389,3 +1389,100 @@ fig_txns = px.scatter(
 )
 
 st.plotly_chart(fig_txns, use_container_width=True)
+
+# --- Row 14 ------------------------------------------------------------------------------------------------------------
+@st.cache_data
+def load_top_path_data(start_date, end_date):
+    start_str = start_date.strftime("%Y-%m-%d")
+    end_str = end_date.strftime("%Y-%m-%d")
+
+    query = f"""
+    WITH axelar_service AS (
+        -- GMP
+        SELECT  
+            created_at,
+            data:call.chain::STRING AS source_chain,
+            data:call.returnValues.destinationChain::STRING AS destination_chain,
+            data:call.transaction.from::STRING AS user,
+            CASE 
+              WHEN IS_ARRAY(data:amount) OR IS_OBJECT(data:amount) THEN NULL
+              WHEN TRY_TO_DOUBLE(data:amount::STRING) IS NOT NULL THEN TRY_TO_DOUBLE(data:amount::STRING)
+              ELSE NULL
+            END AS amount,
+            CASE 
+              WHEN IS_ARRAY(data:value) OR IS_OBJECT(data:value) THEN NULL
+              WHEN TRY_TO_DOUBLE(data:value::STRING) IS NOT NULL THEN TRY_TO_DOUBLE(data:value::STRING)
+              ELSE NULL
+            END AS amount_usd,
+            COALESCE(
+              CASE 
+                WHEN IS_ARRAY(data:gas:gas_used_amount) OR IS_OBJECT(data:gas:gas_used_amount) 
+                  OR IS_ARRAY(data:gas_price_rate:source_token.token_price.usd) OR IS_OBJECT(data:gas_price_rate:source_token.token_price.usd) 
+                THEN NULL
+                WHEN TRY_TO_DOUBLE(data:gas:gas_used_amount::STRING) IS NOT NULL 
+                  AND TRY_TO_DOUBLE(data:gas_price_rate:source_token.token_price.usd::STRING) IS NOT NULL 
+                THEN TRY_TO_DOUBLE(data:gas:gas_used_amount::STRING) * TRY_TO_DOUBLE(data:gas_price_rate:source_token.token_price.usd::STRING)
+                ELSE NULL
+              END,
+              CASE 
+                WHEN IS_ARRAY(data:fees:express_fee_usd) OR IS_OBJECT(data:fees:express_fee_usd) THEN NULL
+                WHEN TRY_TO_DOUBLE(data:fees:express_fee_usd::STRING) IS NOT NULL THEN TRY_TO_DOUBLE(data:fees:express_fee_usd::STRING)
+                ELSE NULL
+              END
+            ) AS fee,
+            id, 
+            'GMP' AS Service, 
+            data:symbol::STRING AS raw_asset
+        FROM axelar.axelscan.fact_gmp 
+        WHERE status = 'executed'
+          AND simplified_status = 'received'
+          AND created_at::date >= '{start_str}' 
+          AND created_at::date <= '{end_str}'
+          
+    )
+    SELECT source_chain || '➡' || destination_chain AS "Path", 
+           COUNT(DISTINCT id) AS "Number of Transfers", 
+           COUNT(DISTINCT user) AS "Number of Users", 
+           ROUND(SUM(amount_usd)) AS "Volume of Transfers (USD)"
+    FROM axelar_service
+    GROUP BY 1
+    ORDER BY 2 DESC
+    """
+
+    return pd.read_sql(query, conn)
+
+# --- Load Data ----------------------------------------------------------------------------------------------------
+top_path_data = load_top_path_data(start_date, end_date)
+# --- Top 10 Horizontal Bar Charts ----------------------------------------------------------------------------------
+top_vol = top_path_data.nlargest(10, "Volume of Transfers (USD)")
+top_txn = top_path_data.nlargest(10, "Number of Transfers")
+
+col1, col2 = st.columns(2)
+
+with col1:
+    fig1 = px.bar(
+        top_vol.sort_values("Volume of Transfers (USD)", ascending=False),
+        x="Path", 
+        y="Volume of Transfers (USD)",
+        title="Top Routes by Volume ($USD)",
+        labels={"Volume of Transfers (USD)": "USD", "Path": " "},
+        color_discrete_sequence=["#3f48cc"],
+        text="Volume of Transfers (USD)"   
+    )
+    fig1.update_traces(texttemplate='%{text:.2s}', textposition='outside')  
+    fig1.update_layout(xaxis={'categoryorder':'total descending'})         
+    st.plotly_chart(fig1, use_container_width=True)
+
+with col2:
+    fig2 = px.bar(
+        top_txn.sort_values("Number of Transfers", ascending=False),
+        x="Path", 
+        y="Number of Transfers",
+        title="Top Routes by Number of Transactions",
+        labels={"Number of Transfers": "Txns count", "Path": " "},
+        color_discrete_sequence=["#3f48cc"],
+        text="Number of Transfers"
+    )
+    fig2.update_traces(texttemplate='%{text}', textposition='outside')
+    fig2.update_layout(xaxis={'categoryorder':'total descending'})
+    st.plotly_chart(fig2, use_container_width=True) 
