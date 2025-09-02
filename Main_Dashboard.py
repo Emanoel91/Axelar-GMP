@@ -1202,6 +1202,9 @@ order by 1, 2
 # --- Load Data ----------------------------------------------------------------------------------------------------
 heatmap_data = load_heatmap_data(timeframe, start_date, end_date)
 # --- Row 2 charts -------------------------------------------------------------------------------------------------
+heatmap_data["Hour"] = heatmap_data["Hour"].astype(str)
+day_order = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+heatmap_data["Day"] = pd.Categorical(heatmap_data["Day"], categories=day_order, ordered=True)
 col1, col2 = st.columns(2)
 
 with col1:
