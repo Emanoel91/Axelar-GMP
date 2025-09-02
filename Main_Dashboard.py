@@ -1299,3 +1299,96 @@ df_display = df_path.copy()
 df_display.index = df_display.index + 1
 df_display = df_display.applymap(lambda x: f"{x:,}" if isinstance(x, (int, float)) else x)
 st.dataframe(df_display, use_container_width=True)
+
+# --- Row 12 -------------------------------------------------------------------------------------------------------------
+@st.cache_data
+def load_source_dest_data(start_date, end_date):
+    query = f"""
+        WITH overview AS (
+            WITH axelar_service AS (
+                SELECT  
+                    created_at,
+                    LOWER(data:call.chain::STRING) AS source_chain,
+                    LOWER(data:call.returnValues.destinationChain::STRING) AS destination_chain,
+                    data:call.transaction.from::STRING AS user,
+                    CASE 
+                      WHEN IS_ARRAY(data:amount) OR IS_OBJECT(data:amount) THEN NULL
+                      WHEN TRY_TO_DOUBLE(data:amount::STRING) IS NOT NULL THEN TRY_TO_DOUBLE(data:amount::STRING)
+                      ELSE NULL
+                    END AS amount,
+                    CASE 
+                      WHEN IS_ARRAY(data:value) OR IS_OBJECT(data:value) THEN NULL
+                      WHEN TRY_TO_DOUBLE(data:value::STRING) IS NOT NULL THEN TRY_TO_DOUBLE(data:value::STRING)
+                      ELSE NULL
+                    END AS amount_usd,
+                    COALESCE(
+                      CASE 
+                        WHEN IS_ARRAY(data:gas:gas_used_amount) OR IS_OBJECT(data:gas:gas_used_amount) 
+                          OR IS_ARRAY(data:gas_price_rate:source_token.token_price.usd) OR IS_OBJECT(data:gas_price_rate:source_token.token_price.usd) 
+                        THEN NULL
+                        WHEN TRY_TO_DOUBLE(data:gas:gas_used_amount::STRING) IS NOT NULL 
+                          AND TRY_TO_DOUBLE(data:gas_price_rate:source_token.token_price.usd::STRING) IS NOT NULL 
+                        THEN TRY_TO_DOUBLE(data:gas:gas_used_amount::STRING) * TRY_TO_DOUBLE(data:gas_price_rate:source_token.token_price.usd::STRING)
+                        ELSE NULL
+                      END,
+                      CASE 
+                        WHEN IS_ARRAY(data:fees:express_fee_usd) OR IS_OBJECT(data:fees:express_fee_usd) THEN NULL
+                        WHEN TRY_TO_DOUBLE(data:fees:express_fee_usd::STRING) IS NOT NULL THEN TRY_TO_DOUBLE(data:fees:express_fee_usd::STRING)
+                        ELSE NULL
+                      END
+                    ) AS fee,
+                    id, 
+                    'GMP' AS "Service", 
+                    data:symbol::STRING AS raw_asset
+                FROM axelar.axelscan.fact_gmp 
+                WHERE status = 'executed'
+                  AND simplified_status = 'received'
+            )
+            SELECT created_at, id, user, source_chain, destination_chain,
+                 "Service", amount, amount_usd, fee
+            FROM axelar_service
+        )
+        SELECT source_chain AS "Source Chain", 
+               destination_chain AS "Destination Chain",
+               ROUND(SUM(amount_usd)) AS "Volume (USD)",
+               COUNT(DISTINCT id) AS "Number of Transactions"
+        FROM overview
+        WHERE created_at::date >= '{start_date}' 
+          AND created_at::date <= '{end_date}'
+          AND amount_usd IS NOT NULL
+        GROUP BY 1, 2
+        ORDER BY 3 DESC, 4
+    """
+    return pd.read_sql(query, conn)
+
+# Load Data
+src_dest_df = load_source_dest_data(start_date, end_date)
+
+col1 = st.columns(1)
+with col1:
+# Bubble Chart 1: Volume
+fig_vol = px.scatter(
+    src_dest_df,
+    x="Source Chain",
+    y="Destination Chain",
+    size="Volume (USD)",
+    color="Source Chain",
+    hover_data=["Volume (USD)", "Number of Transactions"],
+    title="Volume Heatmap Per Route"
+)
+st.plotly_chart(fig_vol, use_container_width=True)
+
+col1 = st.columns(1)
+with col1:
+# Bubble Chart 2: Number of Transactions
+fig_txns = px.scatter(
+    src_dest_df,
+    x="Source Chain",
+    y="Destination Chain",
+    size="Number of Transactions",
+    color="Source Chain",
+    hover_data=["Volume (USD)", "Number of Transactions"],
+    title="Transactions Heatmap Per Route"
+)
+
+st.plotly_chart(fig_txns, use_container_width=True)
