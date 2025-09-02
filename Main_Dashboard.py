@@ -1194,7 +1194,7 @@ order by 1, 2
 
 # --- Load Data ----------------------------------------------------------------------------------------------------
 df_heatmap_data = load_heatmap_data(start_date, end_date)
-# --- Row 2 charts -------------------------------------------------------------------------------------------------
+# --- Row 10 charts -------------------------------------------------------------------------------------------------
 
 col1, col2 = st.columns(2)
 
@@ -1213,3 +1213,89 @@ with col2:
                             title="Heatmap of Volume",
                             labels=dict(x="Hour", y="Day", color="Volume of Transfers"))
     st.plotly_chart(fig_heatmap)
+
+st.markdown(
+    """
+    <div style="background-color:#ff2776; padding:1px; border-radius:10px;">
+        <h2 style="color:#000000; text-align:center;">Analysis of Routes</h2>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
+# --- Row 11 ----------------------------------------------------------------------------------------------------------------
+
+@st.cache_data
+def load_path_data(start_date, end_date):
+    start_str = pd.to_datetime(start_date).strftime("%Y-%m-%d")
+    end_str = pd.to_datetime(end_date).strftime("%Y-%m-%d")
+
+    query = f"""
+    WITH axelar_service AS (
+      SELECT  
+        created_at,
+        data:call.chain::STRING AS source_chain,
+        data:call.returnValues.destinationChain::STRING AS destination_chain,
+        data:call.transaction.from::STRING AS user,
+        CASE 
+          WHEN IS_ARRAY(data:amount) OR IS_OBJECT(data:amount) THEN NULL
+          WHEN TRY_TO_DOUBLE(data:amount::STRING) IS NOT NULL THEN TRY_TO_DOUBLE(data:amount::STRING)
+          ELSE NULL
+        END AS amount,
+        CASE 
+          WHEN IS_ARRAY(data:value) OR IS_OBJECT(data:value) THEN NULL
+          WHEN TRY_TO_DOUBLE(data:value::STRING) IS NOT NULL THEN TRY_TO_DOUBLE(data:value::STRING)
+          ELSE NULL
+        END AS amount_usd,
+        COALESCE(
+          CASE 
+            WHEN IS_ARRAY(data:gas:gas_used_amount) OR IS_OBJECT(data:gas:gas_used_amount) 
+              OR IS_ARRAY(data:gas_price_rate:source_token.token_price.usd) OR IS_OBJECT(data:gas_price_rate:source_token.token_price.usd) 
+            THEN NULL
+            WHEN TRY_TO_DOUBLE(data:gas:gas_used_amount::STRING) IS NOT NULL 
+              AND TRY_TO_DOUBLE(data:gas_price_rate:source_token.token_price.usd::STRING) IS NOT NULL 
+            THEN TRY_TO_DOUBLE(data:gas:gas_used_amount::STRING) * TRY_TO_DOUBLE(data:gas_price_rate:source_token.token_price.usd::STRING)
+            ELSE NULL
+          END,
+          CASE 
+            WHEN IS_ARRAY(data:fees:express_fee_usd) OR IS_OBJECT(data:fees:express_fee_usd) THEN NULL
+            WHEN TRY_TO_DOUBLE(data:fees:express_fee_usd::STRING) IS NOT NULL THEN TRY_TO_DOUBLE(data:fees:express_fee_usd::STRING)
+            ELSE NULL
+          END
+        ) AS fee,
+        id, 
+        'GMP' AS "Service", 
+        data:symbol::STRING AS raw_asset
+        FROM axelar.axelscan.fact_gmp 
+        WHERE status = 'executed'
+        AND simplified_status = 'received'
+        AND created_at::date >= '{start_str}'
+        AND created_at::date <= '{end_str}'
+    )
+    SELECT 
+      source_chain || '➡' || destination_chain AS path, 
+      COUNT(DISTINCT CREATED_AT::DATE) AS "Active Days",
+      COUNT(DISTINCT id) AS "Number of Transfers", 
+      COUNT(DISTINCT user) AS "Number of Users", 
+      round(COUNT(DISTINCT user)/COUNT(DISTINCT CREATED_AT::DATE)) as "Avg Daily Users",
+      count(distinct raw_asset) as "#Transferred Tokens",
+      ROUND(SUM(amount_usd)) AS "Volume of Transfers USD",
+      ROUND(avg(amount_usd)) as "Avg Volume USD",
+      ROUND(median(amount_usd)) as "Median Volume USD",
+      ROUND(max(amount_usd)) as "Max Volume USD",
+      ROUND(sum(amount_usd)/count(distinct created_at::date)) as "Avg Daily Volume USD"
+    FROM axelar_service
+    GROUP BY 1
+    ORDER BY 2 DESC
+    """
+
+    return pd.read_sql(query, conn)
+
+# --- Load data ---
+df_path = load_path_data(start_date, end_date)
+
+# --- Show table ---
+st.subheader("🔀Overview of Cross-Chain Routes")
+df_display = df_path.copy()
+df_display.index = df_display.index + 1
+df_display = df_display.applymap(lambda x: f"{x:,}" if isinstance(x, (int, float)) else x)
+st.dataframe(df_display, use_container_width=True)
